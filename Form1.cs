@@ -29,6 +29,14 @@ namespace AdaptiveStreaming
                 chart1.Series[0].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
             }
 
+            chart1.Series.Add("pasmo");
+            chart1.Series["pasmo"].Color = Color.Green;
+
+            for(int i=0; i<simulation.downloadPoints.Count; i++)
+            {
+                chart1.Series["pasmo"].Points.AddXY(simulation.downloadPoints[i].Item2, simulation.downloadPoints[i].Item1);
+                chart1.Series["pasmo"].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+            }
         }
     }
 }

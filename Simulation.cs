@@ -8,15 +8,17 @@ namespace AdaptiveStreaming
 {
     class Simulation
     {
+        public List<Tuple<int, int>> downloadPoints = new List<Tuple<int, int>>();
+
+        private int download; //predkosc sciagania high lub low
         private int currentTime;
         private Event e = new Event();
         private int inBuffer;
-        private int download; //predkosc sciagania high lub low
 
-        private const int durationTime = 150;
+        private const int durationTime = 250;
         private const int bufferSize = 30;
-        private const int bitRate = 5;
-        private const int high = 8;
+        private const int bitRate = 3;
+        private const int high = 5;
         private const int low = 1;
         private const int timeIter = 2;
 
@@ -24,20 +26,25 @@ namespace AdaptiveStreaming
         //symuluje i zwraca punkty do wykresu
         public List<Tuple<int, int>> Simulate()
         {
+            List<Tuple<int, int>> parameters = new List<Tuple<int, int>>(); //wspolrzedne do wykresu
+            double expDistribution = exponentialDistribution();
+            int changeTime = currentTime + (int)expDistribution; //losowy czas do zmiany pasma
+
             currentTime = 0;
             inBuffer = 0;
             download = high;
 
-            List<Tuple<int, int>> parameters = new List<Tuple<int, int>>(); //wspolrzedne do wykresu
-
             while (currentTime < durationTime)
             {
+                parameters.Add(Tuple.Create(inBuffer, currentTime));  //dodaj punkt do wykresu
 
-                parameters.Add(Tuple.Create<int, int>(inBuffer, currentTime));
+                downloadPoints.Add(Tuple.Create(download, currentTime));
 
-                if(currentTime>=30)
+                if(currentTime>=changeTime)
                 {
-                    download = low;
+                    changeDownload();
+                    double distribution = exponentialDistribution();
+                    changeTime = currentTime + (int)distribution;
                 }
 
                 switch (e.type)
@@ -82,5 +89,22 @@ namespace AdaptiveStreaming
             }
             return parameters;
         }
+
+        double exponentialDistribution()    // rozkład wykładniczy pstwa
+        {
+            const double lambda = 0.02;
+            Random rand = new Random();
+
+            return Math.Log(1-rand.NextDouble()) / (-lambda);
+        }
+
+        void changeDownload()
+        {
+            if (download == high)
+                download = low;
+            else if (download == low)
+                download = high;
+        }
+
     }
 }
