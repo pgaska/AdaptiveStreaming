@@ -7,3 +7,12 @@ c:\users\admin\documents\visual studio 2015\Projects\AdaptiveStreaming\AdaptiveS
 c:\users\admin\documents\visual studio 2015\Projects\AdaptiveStreaming\AdaptiveStreaming\obj\Debug\AdaptiveStreaming.csproj.GenerateResource.Cache
 c:\users\admin\documents\visual studio 2015\Projects\AdaptiveStreaming\AdaptiveStreaming\obj\Debug\AdaptiveStreaming.exe
 c:\users\admin\documents\visual studio 2015\Projects\AdaptiveStreaming\AdaptiveStreaming\obj\Debug\AdaptiveStreaming.pdb
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\bin\Debug\AdaptiveStreaming.exe.config
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.exe
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.pdb
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.csprojResolveAssemblyReference.cache
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.Form1.resources
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.Properties.Resources.resources
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\obj\Debug\AdaptiveStreaming.csproj.GenerateResource.Cache
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\bin\Debug\AdaptiveStreaming.exe
+D:\Projekty\AdaptiveStreaming\AdaptiveStreaming-master\bin\Debug\AdaptiveStreaming.pdb

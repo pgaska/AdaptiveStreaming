@@ -8,9 +8,15 @@ namespace AdaptiveStreaming
 {
     class Event
     {
-        public enum Type { Empty, Full, Regular};
+        public enum Type { BandwidthChange, SegmentPlay};
 
         public Type type; //typ eventu
-        public int time; //czas w symulacji
+        public double time; //czas w symulacji
+
+        public Event(Type type, double time)
+        {
+            this.type = type;
+            this.time = time;
+        }
     }
 }

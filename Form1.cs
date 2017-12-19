@@ -21,7 +21,7 @@ namespace AdaptiveStreaming
         {
             Simulation simulation = new Simulation();
 
-            List<Tuple<int, int>> xy = simulation.Simulate();
+            List<Tuple<double, double>> xy = simulation.Simulate();
 
             for(int i=0; i<xy.Count; i++)
             {

@@ -8,102 +8,111 @@ namespace AdaptiveStreaming
 {
     class Simulation
     {
-        public List<Tuple<int, int>> downloadPoints = new List<Tuple<int, int>>();
+        public List<Tuple<int, double>> downloadPoints = new List<Tuple<int, double>>();
 
-        private int download; //predkosc sciagania high lub low
-        private int currentTime;
-        private Event e = new Event();
-        private int inBuffer;
+        private int bandwidth; //predkosc sciagania high lub low
+        private double currentTime;
+        private double prevTime;
+        private double buffer = 0;
 
-        private const int durationTime = 250;
+        private const int durationTime = 150;   //dlugosc symulacji
         private const int bufferSize = 30;
-        private const int bitRate = 3;
+        private const int bitRate = 2;
         private const int high = 5;
         private const int low = 1;
-        private const int timeIter = 2;
-
+        private const double segmentSize = 2;
+        
 
         //symuluje i zwraca punkty do wykresu
-        public List<Tuple<int, int>> Simulate()
+        public List<Tuple<double, double>> Simulate()
         {
-            List<Tuple<int, int>> parameters = new List<Tuple<int, int>>(); //wspolrzedne do wykresu
-            double expDistribution = exponentialDistribution();
-            int changeTime = currentTime + (int)expDistribution; //losowy czas do zmiany pasma
+            List<Tuple<double, double>> parameters = new List<Tuple<double, double>>(); //wspolrzedne do wykresu
+
+            List<Event> events = new List<Event>();
+
+            Random rand = new Random(); //rand do rozkładu
 
             currentTime = 0;
-            inBuffer = 0;
-            download = high;
+            prevTime = 0;
+            bandwidth = high;
+
+            Event firstBandwidthChange = new Event (Event.Type.BandwidthChange, exponentialDistribution(rand));
+            events.Add(firstBandwidthChange);
+
+            Event firstSegmentPlay = new Event(Event.Type.SegmentPlay, currentTime + (segmentSize/bandwidth));
+            events.Add(firstSegmentPlay);
+
+            parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
+
+            downloadPoints.Add(Tuple.Create(bandwidth, currentTime));
 
             while (currentTime < durationTime)
             {
-                parameters.Add(Tuple.Create(inBuffer, currentTime));  //dodaj punkt do wykresu
+                events = events.OrderBy(e => e.time).ToList();  //sortuje zdarzenia wzgledem czasu ich wystapienia
 
-                downloadPoints.Add(Tuple.Create(download, currentTime));
+                Event currentEvent = events[0];
 
-                if(currentTime>=changeTime)
+                currentTime = currentEvent.time;
+
+                switch(currentEvent.type)
                 {
-                    changeDownload();
-                    double distribution = exponentialDistribution();
-                    changeTime = currentTime + (int)distribution;
-                }
-
-                switch (e.type)
-                {
-                    case Event.Type.Empty:
-                        inBuffer += download;   //jak bufor jest pusty to sciagaj i nie odtwarzaj
-
-                        currentTime += timeIter;
-                        if(inBuffer>0)
-                        {
-                            e.type = Event.Type.Regular;
-                        }
+                    case Event.Type.BandwidthChange:
+                        changeDownload();   //zmien pasmo
+                        Event changeBandwidth = new Event(Event.Type.BandwidthChange, exponentialDistribution(rand) + currentTime);
+                        events.Add(changeBandwidth);    //wylosuj nowy czas zmiany i dodaj do listy
                         break;
 
-                    case Event.Type.Full:
-                        inBuffer -= bitRate;    //jak bufor pełny to wypluwaj i nie sciagaj
-
-                        currentTime += timeIter;
-                        if (inBuffer <= bufferSize)
+                    case Event.Type.SegmentPlay:
+                        Event nextSegment = new Event(Event.Type.SegmentPlay, currentTime + (bandwidth/segmentSize));
+                        events.Add(nextSegment);    //dodaj do listy event wczytujacy nastepny segment
+                        if (buffer >= bufferSize)
                         {
-                            e.type = Event.Type.Regular;
+                            buffer = bufferSize;    //jak bufor osiaga wartosc optymalna to nie wczytuje danych tylko je wyrzuca
+                            buffer -= (currentTime - prevTime) * bitRate / segmentSize;
                         }
-                        break;
-
-                    case Event.Type.Regular:
-                        inBuffer += download;
-                        inBuffer -= bitRate;
-
-                        if (inBuffer <= 0)
+                        else if (buffer <= 0)
                         {
-                            inBuffer = 0;
-                            e.type = Event.Type.Empty;
+                            buffer = 0; //jak jest pusty to tylko  pobiera
+                            buffer += (currentTime - prevTime) * bandwidth / segmentSize;
                         }
-                        if(inBuffer>=bufferSize)
+                        else
                         {
-                            inBuffer = bufferSize;
-                            e.type = Event.Type.Full;
+                            //w pozostałych przypadkach wczytuje i odtwarza jednoczesnie
+                            buffer += (currentTime - prevTime) * bandwidth / segmentSize;
+                            buffer -= (currentTime - prevTime) * bitRate / segmentSize;
+
+                            //zabezpieczenia przed wyjsciem poza zakres
+                            if (buffer > bufferSize)
+                                buffer = bufferSize;
+                            if (buffer < 0)
+                                buffer = 0;
                         }
-                        currentTime += timeIter;
+                        prevTime = currentTime;
                         break;
                 }
+                parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
+
+                downloadPoints.Add(Tuple.Create(bandwidth, currentTime));   //dodaj punkt do drugiego wykresu
+
+                events.Remove(events[0]);
             }
+
             return parameters;
         }
 
-        double exponentialDistribution()    // rozkład wykładniczy pstwa
+        double exponentialDistribution(Random rand)    // rozkład wykładniczy pstwa
         {
-            const double lambda = 0.02;
-            Random rand = new Random();
+            const double lambda = 0.04;
 
-            return Math.Log(1-rand.NextDouble()) / (-lambda);
+            return 10+Math.Log(1-rand.NextDouble()) / (-lambda);
         }
 
         void changeDownload()
         {
-            if (download == high)
-                download = low;
-            else if (download == low)
-                download = high;
+            if (bandwidth == high)
+                bandwidth = low;
+            else if (bandwidth == low)
+                bandwidth = high;
         }
 
     }
