@@ -23,19 +23,22 @@ namespace AdaptiveStreaming
 
             List<Tuple<double, double>> xy = simulation.Simulate();
 
-            for(int i=0; i<xy.Count; i++)
+            chart1.Series.Add("Bufor");
+            chart1.Series["Bufor"].Color = Color.Black;
+
+            for (int i=0; i<xy.Count; i++)
             {
-                chart1.Series[0].Points.AddXY(xy[i].Item2, xy[i].Item1);
-                chart1.Series[0].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+                chart1.Series["Bufor"].Points.AddXY(xy[i].Item2, xy[i].Item1);
+                chart1.Series["Bufor"].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
             }
 
-            chart1.Series.Add("pasmo");
-            chart1.Series["pasmo"].Color = Color.Green;
+            chart1.Series.Add("Pasmo");
+            chart1.Series["Pasmo"].Color = Color.DarkRed;
 
             for(int i=0; i<simulation.downloadPoints.Count; i++)
             {
-                chart1.Series["pasmo"].Points.AddXY(simulation.downloadPoints[i].Item2, simulation.downloadPoints[i].Item1);
-                chart1.Series["pasmo"].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
+                chart1.Series["Pasmo"].Points.AddXY(simulation.downloadPoints[i].Item2, simulation.downloadPoints[i].Item1);
+                chart1.Series["Pasmo"].ChartType = System.Windows.Forms.DataVisualization.Charting.SeriesChartType.Line;
             }
         }
     }

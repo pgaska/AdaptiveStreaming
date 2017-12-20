@@ -87,10 +87,10 @@ namespace AdaptiveStreaming
                             if (buffer < 0)
                                 buffer = 0;
                         }
+                        parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
                         prevTime = currentTime;
                         break;
                 }
-                parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
 
                 downloadPoints.Add(Tuple.Create(bandwidth, currentTime));   //dodaj punkt do drugiego wykresu
 
