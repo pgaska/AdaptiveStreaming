@@ -8,43 +8,46 @@ namespace AdaptiveStreaming
 {
     class Simulation
     {
-        public List<Tuple<int, double>> downloadPoints = new List<Tuple<int, double>>();
+        public List<Tuple<double, double>> downloadPoints = new List<Tuple<double, double>>();
+        public List<Tuple<double, double>> bitRatePoints = new List<Tuple<double, double>>();
 
-        private int bandwidth; //predkosc sciagania high lub low
+        private double bandwidth; //predkosc sciagania high lub low
         private double currentTime;
-        private double prevTime;
+        private double segmentTime = 0;
         private double buffer = 0;
+        private double time = 0;
+        private double bitRate = 2;
 
-        private const int durationTime = 150;   //dlugosc symulacji
+        private List<Event> events = new List<Event>();
+
+        private bool downloading = false;
+        private bool playing = false;
+
+        private const int durationTime = 350;   //dlugosc symulacji
         private const int bufferSize = 30;
-        private const int bitRate = 2;
-        private const int high = 5;
+        private const double high = 6.5;
         private const int low = 1;
         private const double segmentSize = 2;
-        
+        private static readonly double[] availableBitrates = { 1.4, 2.0, 3.2, 4.3 };
+
 
         //symuluje i zwraca punkty do wykresu
         public List<Tuple<double, double>> Simulate()
         {
             List<Tuple<double, double>> parameters = new List<Tuple<double, double>>(); //wspolrzedne do wykresu
 
-            List<Event> events = new List<Event>();
-
             Random rand = new Random(); //rand do rozkładu
 
             currentTime = 0;
-            prevTime = 0;
-            bandwidth = high;
-
-            Event firstBandwidthChange = new Event (Event.Type.BandwidthChange, exponentialDistribution(rand));
-            events.Add(firstBandwidthChange);
-
-            Event firstSegmentPlay = new Event(Event.Type.SegmentPlay, currentTime + (segmentSize/bandwidth));
-            events.Add(firstSegmentPlay);
+            bandwidth = low;
 
             parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
 
             downloadPoints.Add(Tuple.Create(bandwidth, currentTime));
+
+            bitRatePoints.Add(Tuple.Create(bitRate, currentTime));
+
+            InsertEvents();
 
             while (currentTime < durationTime)
             {
@@ -52,67 +55,173 @@ namespace AdaptiveStreaming
 
                 Event currentEvent = events[0];
 
-                currentTime = currentEvent.time;
+                //currentTime = currentEvent.time;
 
-                switch(currentEvent.type)
+                if (downloading)
+                {
+                    double downloadTime = (currentEvent.time - currentTime) * bandwidth / bitRate;
+                    buffer += downloadTime;
+                    segmentTime += downloadTime;
+                }
+
+                if (playing)
+                {
+                    buffer -= (currentEvent.time - currentTime);
+                    if (buffer < 0)
+                        buffer = 0;
+                }
+
+                switch (currentEvent.type)
                 {
                     case Event.Type.BandwidthChange:
-                        changeDownload();   //zmien pasmo
-                        Event changeBandwidth = new Event(Event.Type.BandwidthChange, exponentialDistribution(rand) + currentTime);
-                        events.Add(changeBandwidth);    //wylosuj nowy czas zmiany i dodaj do listy
-                        break;
+                        downloadPoints.Add(Tuple.Create(bandwidth, currentTime));   //dodaj punkt do drugiego wykresu
+                        bitRatePoints.Add(Tuple.Create(bitRate, currentTime));
+                        bandwidth = currentEvent.value; //zmiana bandwidth na tę z Eventu
+                        chooseBitrate();
 
-                    case Event.Type.SegmentPlay:
-                        Event nextSegment = new Event(Event.Type.SegmentPlay, currentTime + (bandwidth/segmentSize));
-                        events.Add(nextSegment);    //dodaj do listy event wczytujacy nastepny segment
+                        if (downloading)
+                        {
+                            RemoveEvents();
+                            continueDownloading(currentEvent);
+                        }
+
+                        break;
+                    case Event.Type.DownloadFinished:
+                        segmentTime = 0.0; //zaktualizuj licznik pobranego segmentu
+
+                        //jeśli bufor >= 30 to nie pobieraj nic
                         if (buffer >= bufferSize)
                         {
-                            buffer = bufferSize;    //jak bufor osiaga wartosc optymalna to nie wczytuje danych tylko je wyrzuca
-                            buffer -= (currentTime - prevTime) * bitRate / segmentSize;
-                        }
-                        else if (buffer <= 0)
-                        {
-                            buffer = 0; //jak jest pusty to tylko  pobiera
-                            buffer += (currentTime - prevTime) * bandwidth / segmentSize;
+                            downloading = false;
                         }
                         else
                         {
-                            //w pozostałych przypadkach wczytuje i odtwarza jednoczesnie
-                            buffer += (currentTime - prevTime) * bandwidth / segmentSize;
-                            buffer -= (currentTime - prevTime) * bitRate / segmentSize;
-
-                            //zabezpieczenia przed wyjsciem poza zakres
-                            if (buffer > bufferSize)
-                                buffer = bufferSize;
-                            if (buffer < 0)
-                                buffer = 0;
+                            continueDownloading(currentEvent);
                         }
-                        parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
-                        prevTime = currentTime;
+
+                        break;
+                    case Event.Type.SegmentPlayFinished:
+                        if (buffer >= segmentSize)
+                        {
+                            events.Add(new Event(Event.Type.SegmentPlayFinished, currentEvent.time + segmentSize,  0.0));
+                            playing = true;
+                        }
+                        else
+                        {
+                            playing = false;
+                        }
+
+                        if (!downloading && (buffer < bufferSize))
+                        {
+                            continueDownloading(currentEvent);
+                        }
+
                         break;
                 }
 
-                downloadPoints.Add(Tuple.Create(bandwidth, currentTime));   //dodaj punkt do drugiego wykresu
+                if (!playing)
+                {
+                    if (bandwidth > bitRate && buffer >= segmentSize)
+                    {
+                        events.Add(new Event(Event.Type.SegmentPlayFinished, currentEvent.time + segmentSize, 0.0));
+                        playing = true;
+                    }
 
-                events.Remove(events[0]);
+                    if (bandwidth <= bitRate && buffer >= 0)
+                    {
+                        events.Add(new Event(Event.Type.SegmentPlayFinished, currentEvent.time + segmentSize, 0.0));
+                        playing = true;
+                    }
+
+                    if (!downloading)
+                    {
+                        continueDownloading(currentEvent);
+                    }
+                }
+
+                currentTime = currentEvent.time;
+                events.Remove(currentEvent);
+                parameters.Add(Tuple.Create(buffer, currentTime));  //dodaj punkt do wykresu
+                downloadPoints.Add(Tuple.Create(bandwidth, currentTime));   //dodaj punkt do drugiego wykresu
+                bitRatePoints.Add(Tuple.Create(bitRate, currentTime));
+
             }
 
             return parameters;
         }
 
-        double exponentialDistribution(Random rand)    // rozkład wykładniczy pstwa
+        private void InsertEvents()
         {
-            const double lambda = 0.04;
+            double myBandwidth;
+            Random rand = new Random();
+            Random rand2 = new Random();
+            time = 0.0;
+            events.Add(new Event(Event.Type.BandwidthChange, 0.0, high));
 
-            return 10+Math.Log(1-rand.NextDouble()) / (-lambda);
+            while (time < durationTime)
+            {
+                myBandwidth = SetRandomBandwidth(rand);
+
+                time += exponentialDistribution(rand2, 0.08); //losuj czas
+                Event e = new Event(Event.Type.BandwidthChange, time, myBandwidth);
+                events.Add(e);
+            }
         }
 
-        void changeDownload()
+        private void chooseBitrate()
+        {
+            bitRate = availableBitrates[0];
+            for(int i =0; i<availableBitrates.Length; i++)
+            {
+                if (availableBitrates[i] < bandwidth)
+                    bitRate = availableBitrates[i];
+                else
+                    break;
+            }
+        }
+
+        private void continueDownloading(Event e)
+        {
+            double videoTime = segmentSize - segmentTime;
+            double download = videoTime * bitRate / bandwidth;
+            events.Add(new Event(Event.Type.DownloadFinished, e.time + download, 0.0));
+            downloading = true;
+        }
+
+        private void RemoveEvents()
+        {
+            List<int> ids = new List<int>();
+            for (int i = 0; i<events.Count; i++)
+            {
+                if (events[i].type == Event.Type.DownloadFinished)
+                {
+                    ids.Add(i);
+                }
+            }
+            for(int i = 0; i<ids.Count; i++)
+            {
+                events.Remove(events[ids[i]]);
+            }
+        }
+
+        private double exponentialDistribution(Random rand, double lambda)    // rozkład wykładniczy pstwa
+        {
+            //const double lambda = 0.07;
+
+            return Math.Log(1-rand.NextDouble()) / (-lambda);
+        }
+
+        private double SetRandomBandwidth(Random rand)
+        {
+            return rand.NextDouble() * 5.5 + 1;
+        }
+
+        private void changeDownload(Random rand)
         {
             if (bandwidth == high)
-                bandwidth = low;
+              bandwidth = low;
             else if (bandwidth == low)
-                bandwidth = high;
+              bandwidth = high;
         }
 
     }
